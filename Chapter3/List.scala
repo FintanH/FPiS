@@ -28,9 +28,11 @@ object List {
         case (Cons(a, as), n) => drop(as, n-1)
     }
 
-    def dropWhile[A](l: List[A], p: A => Boolean): List[A] = l match {
+    // Group arguments to help type inference
+    // Use looks like dropWhile(as)(p) i.e. curried
+    def dropWhile[A](l: List[A])(p: A => Boolean): List[A] = l match {
         case Nil => Nil
-        case Cons(a, as) => if (p(a)) dropWhile(as, p) else Cons(a, as)
+        case Cons(a, as) => if (p(a)) dropWhile(as)(p) else Cons(a, as)
     }
 
     def sum(ints: List[Int]): Int = ints match {
