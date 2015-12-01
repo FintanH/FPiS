@@ -35,16 +35,18 @@ object List {
         case Cons(a, as) => if (p(a)) dropWhile(as)(p) else Cons(a, as)
     }
 
-    def sum(ints: List[Int]): Int = ints match {
-        case Nil => 0
-        case Cons(x, xs) => x + sum(xs)
+    def foldRight[A, B](as: List[A], z: B)(f: (A, B) => B): B = {
+        as match {
+            case Nil => z
+            case Cons(x, xs) => f(x, foldRight(xs, z)(f))
+        }
     }
 
-    def product(doubles: List[Double]): Double = doubles match {
-        case Nil => 1.0
-        case Cons(0.0, _) => 0.0
-        case Cons(d, ds) => d * product(ds)
-    }
+    def sum(ints: List[Int]): Int =
+        foldRight(ints, 0)(_ + _)
+
+    def product(doubles: List[Double]): Double =
+        foldRight(doubles, 1.0)(_ * _)
 
     def apply[A](as: A*): List[A] =
         if (as.isEmpty) Nil
