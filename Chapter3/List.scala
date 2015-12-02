@@ -4,10 +4,9 @@ case object Nil extends List[Nothing]
 case class Cons[+A](head: A, tail: List[A]) extends List[A]
 
 object List {
-    def append[A](l1: List[A], l2: List[A]): List[A] = l1 match {
-        case Nil => l2
-        case Cons(a, as) => Cons(a, append(as, l2))
-    }
+
+    def append[A](l1: List[A], l2: List[A]): List[A] =
+        foldRight(l1, l2)((a, b) => Cons(a, b))
 
     def tail[A](as: List[A]): List[A] =
         drop(as, 1)
@@ -35,18 +34,34 @@ object List {
         case Cons(a, as) => if (p(a)) dropWhile(as)(p) else Cons(a, as)
     }
 
-    def foldRight[A, B](as: List[A], z: B)(f: (A, B) => B): B = {
-        as match {
+    def foldRight[A, B](as: List[A], z: B)(f: (A, B) => B): B =
+        // reverse the list to access the back
+        // then swap arguments of function f
+        foldLeft(reverse(as), z)((a, b) => f(b, a))
+
+    def foldLeft[A, B](as: List[A], z: B)(f: (B, A) => B): B = {
+        def go[A, B](as: List[A], z: B, f: (B, A) => B): B = as match {
             case Nil => z
-            case Cons(x, xs) => f(x, foldRight(xs, z)(f))
+            case Cons(x, xs) => go(xs, f(z, x), f)
         }
+
+        go(as, z, f)
     }
 
+    def length[A](as: List[A]): Int =
+        foldLeft(as, 0)((b, a) => 1 + b)
+
+    def reverse[A](as: List[A]): List[A] =
+        foldLeft(as, Nil: List[A])((b , a) => Cons(a, b))
+
+    def flatten[A](as: List[List[A]]): List[A] =
+        foldLeft(as, Nil: List[A])((b, a) => append(b, a))
+
     def sum(ints: List[Int]): Int =
-        foldRight(ints, 0)(_ + _)
+        foldLeft(ints, 0)(_ + _)
 
     def product(doubles: List[Double]): Double =
-        foldRight(doubles, 1.0)(_ * _)
+        foldLeft(doubles, 1.0)(_ * _)
 
     def apply[A](as: A*): List[A] =
         if (as.isEmpty) Nil
