@@ -59,6 +59,8 @@ object List {
         def go[A, B, C](as: List[A], bs: List[B], cs: List[C])(f: (A, B) => C): List[C] =
             (as, bs) match {
                 case (Nil, Nil) => cs
+                case (Nil, Cons(_, _)) => cs
+                case (Cons(_, _), Nil) => cs
                 case (Cons(x, xs), Cons(y, ys)) => go(xs, ys, Cons(f(x, y), cs))(f)
             }
 
