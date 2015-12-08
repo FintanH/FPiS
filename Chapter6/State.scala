@@ -110,3 +110,73 @@ case class SimpleRNG(seed: Long) extends RNG {
   def intsViaSeq(count: Int): Rand[List[Int]] =
     sequence(List.fill(count)(int))
 }
+
+import State._
+
+case class State[S, +A](run: S => (A, S)) {
+  def map[B](f: A => B): State[S, B] =
+    flatMap(a => unit(f(a)))
+
+  def map2[B, C](sb: State[S, B])(f: (A, B) => C): State[S, C] =
+    flatMap(a => sb map(b => f(a, b)))
+
+  def flatMap[B](f: A => State[S, B]): State[S, B] = State(s => {
+      val (a, ss) = run(s)
+      f(a).run(ss)
+  })
+}
+
+object State {
+  type Rand[A] = State[RNG, A]
+
+  def unit[S, A](a: A): State[S, A] = State(s => (a, s))
+
+  def sequence[S, A](ss: List[State[S, A]]): State[S, List[A]] =
+    ss.foldRight(unit[S, List[A]](Nil))((a, b) => a.map2(b)(_ :: _))
+
+  def modify[S](f: S => S): State[S, Unit] = for {
+    s <- get // Gets the current state and assigns it to `s`.
+    _ <- set(f(s)) // Sets the new state to `f` applied to `s`.
+  } yield ()
+
+  def get[S]: State[S, S] = State(s => (s, s))
+
+  def set[S](s: S): State[S, Unit] = State(_ => ((), s))
+}
+
+sealed trait Input
+case object Coin extends Input
+case object Turn extends Input
+
+case class Machine(locked: Boolean, candies: Int, coins: Int) {
+
+  def insertCoin: State[Machine, Unit] =
+    modify({
+      case Machine(false, candies, coins) => Machine(false, candies, coins)
+      case Machine(true, candies, coins) => Machine(false, candies, coins+1)
+    })
+
+  def turnHandle: State[Machine, Unit] =
+    modify({
+      case Machine(false, candies, coins) if candies == 0
+        => Machine(false, candies, coins)
+      case Machine(false, candies, coins) if candies > 0
+        => Machine(true, candies-1, coins)
+      case Machine(true, candies, coint) => Machine(true, candies, coins)
+    })
+
+  def simulateMachine(inputs: List[Input]): State[Machine, (Int, Int)] = {
+    def go(inputs: List[Input]): List[State[Machine, Unit]] = inputs match {
+      case Nil => Nil
+      case (i::is) => i match {
+        case Coin => insertCoin::go(is)
+        case Turn => turnHandle::go(is)
+      }
+    }
+
+    for {
+      _ <- sequence(go(inputs))
+      m <- get
+    } yield (m.coins, m.candies)
+  }
+}
